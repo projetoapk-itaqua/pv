@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lovable Commander</title>
+<style>
+  :root {
+    --bg: #eceff5;
+    --surface: #ffffff;
+    --ink: #152033;
+    --muted: #5a667a;
+    --line: #d5dbe6;
+    --accent: #2c5be0;
+    --accent-ink: #ffffff;
+    --ok: #177a52;
+    --err: #b3342a;
+    --warn: #8a5a00;
+    --code-bg: #f6f8fb;
+    --radius: 6px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1520;
+      --surface: #161e2c;
+      --ink: #e6ebf4;
+      --muted: #93a0b6;
+      --line: #2a3548;
+      --accent: #6f93ff;
+      --accent-ink: #0b1220;
+      --ok: #4cc38f;
+      --err: #ff8a7e;
+      --warn: #e0b04a;
+      --code-bg: #0f1622;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; color: var(--ink); background: var(--bg);
+    font: 15px/1.5 var(--font);
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
+  header { margin-bottom: 32px; }
+  h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 60ch; }
+  h2 { font-size: 18px; line-height: 28px; margin: 0 0 12px; }
+
+  .step { position: relative; padding: 0 0 36px 44px; }
+  .step::before {
+    content: ""; position: absolute; left: 13px; top: 34px; bottom: 6px;
+    width: 2px; background: var(--line);
+  }
+  .step:last-of-type { padding-bottom: 0; }
+  .step:last-of-type::before { display: none; }
+  .n {
+    position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--ink); color: var(--bg); display: grid; place-items: center;
+    font-weight: 600; font-size: 14px;
+  }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .grid .full { grid-column: 1 / -1; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+  label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 4px 0 0; font-weight: 400; }
+  input[type=text], input[type=password], input[type=url], textarea {
+    width: 100%; padding: 9px 10px; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--radius); font: inherit;
+  }
+  textarea { resize: vertical; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .check { display: flex; align-items: center; gap: 8px; font-weight: 400; font-size: 13px; margin: 6px 0 0; }
+  .check input { margin: 0; }
+
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    font: inherit; font-weight: 600; cursor: pointer; padding: 9px 16px;
+    border-radius: var(--radius); border: 1px solid var(--accent);
+    background: var(--accent); color: var(--accent-ink);
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.small { padding: 4px 10px; font-size: 13px; font-weight: 500; }
+  .btn.gh { background: var(--ink); border-color: var(--ink); color: var(--bg); display: inline-flex; align-items: center; gap: 8px; }
+  .btn.gh svg { width: 18px; height: 18px; fill: currentColor; }
+
+  .msg { font-size: 13.5px; margin: 0; }
+  .msg.ok { color: var(--ok); }
+  .msg.err { color: var(--err); }
+  .msg.warn { color: var(--warn); }
+  .muted { color: var(--muted); }
+  .conn { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .banner { border: 1px solid var(--warn); color: var(--warn); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 16px; font-size: 13.5px; }
+  code { font-family: var(--mono); font-size: 12.5px; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+
+  #command { min-height: 120px; }
+  #log { list-style: none; margin: 12px 0 0; padding: 0; font: 12.5px/1.6 var(--mono); color: var(--muted); }
+  #log li::before { content: "› "; }
+
+  .summary { margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--code-bg); }
+  .file { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); margin-bottom: 12px; overflow: hidden; }
+  .file-head { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .file-head .path { font-family: var(--mono); font-size: 13px; padding: 5px 8px; flex: 1; min-width: 0; }
+  .chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  .chip.new { color: var(--ok); }
+  .chip.mod { color: var(--accent); }
+  .chip.del { color: var(--err); }
+  textarea.code {
+    display: block; border: 0; border-radius: 0; background: var(--code-bg);
+    font: 12.5px/1.55 var(--mono); max-height: 420px; tab-size: 2; white-space: pre;
+  }
+  .pad { padding: 12px; margin: 0; }
+  .commit-row { margin: 16px 0; }
+  .done { border: 1px solid var(--ok); border-radius: var(--radius); padding: 14px; color: var(--ok); }
+  .done a { color: inherit; font-weight: 600; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Lovable Commander</h1>
+    <p>Descreva a mudança em português, revise o código que a IA gerou e envie como um commit para o repositório que o Lovable sincroniza.</p>
+  </header>
+
+  <section class="step" aria-labelledby="h-conn">
+    <span class="n" aria-hidden="true">1</span>
+    <h2 id="h-conn">Conexão</h2>
+    <div class="panel">
+      <div id="fileWarn" class="banner" hidden>
+        Este arquivo foi aberto direto do disco (<code>file://</code>) e o login do GitHub não consegue voltar para ele.
+        Na pasta do arquivo, rode <code>python3 -m http.server 8000</code> e acesse <code>http://localhost:8000/lovable-commander.html</code>.
+      </div>
+
+      <div class="conn">
+        <div>
+          <div id="connStatus" class="muted">GitHub não conectado.</div>
+          <p id="connMsg" class="msg" role="status"></p>
+        </div>
+        <div class="row">
+          <button id="btnConnect" class="btn gh" type="button">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            Conectar com GitHub
+          </button>
+          <button id="btnDisconnect" class="btn ghost small" type="button" hidden>Desconectar</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="full">
+          <label for="workerUrl">Endereço do Worker de login</label>
+          <input id="workerUrl" type="url" placeholder="https://lovable-commander.seu-usuario.workers.dev" autocomplete="off">
+          <p class="hint">É o endereço do <code>github-oauth-worker.js</code> publicado na Cloudflare.</p>
+        </div>
+        <div>
+          <label for="repo">Repositório</label>
+          <input id="repo" type="text" list="repoList" placeholder="dono/repo" autocomplete="off" spellcheck="false">
+          <datalist id="repoList"></datalist>
+          <p class="hint">Depois de conectar, a lista mostra os repositórios em que você pode escrever.</p>
+        </div>
+        <div>
+          <label for="branch">Branch</label>
+          <input id="branch" type="text" placeholder="main" autocomplete="off" spellcheck="false">
+          <p class="hint">Vazio usa a branch padrão do repositório.</p>
+        </div>
+        <div>
+          <label for="apiKey">Chave da API da Anthropic</label>
+          <input id="apiKey" type="password" placeholder="sk-ant-…" autocomplete="off">
+          <label class="check"><input id="remember" type="checkbox"> Lembrar a chave neste navegador</label>
+        </div>
+        <div>
+          <label for="model">Modelo</label>
+          <input id="model" type="text" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="h-cmd">
+    <span class="n" aria-hidden="true">2</span>
+    <h2 id="h-cmd">Comando</h2>
+    <div class="panel">
+      <label for="command">O que você quer mudar?</label>
+      <textarea id="command" placeholder="Ex.: crie uma página de contato com formulário de nome, e-mail e mensagem, e adicione o link no menu."></textarea>
+      <div class="row" style="margin-top:12px">
+        <button id="btnGenerate" class="btn" type="button">Gerar alterações</button>
+        <button id="btnCancel" class="btn ghost" type="button" hidden>Cancelar</button>
+        <span class="muted" style="font-size:12.5px">Ctrl/⌘ + Enter também gera.</span>
+      </div>
+      <p id="genMsg" class="msg" role="status" style="margin-top:10px"></p>
+      <ul id="log" aria-live="polite"></ul>
+    </div>
+  </section>
+
+  <section class="step" id="review" aria-labelledby="h-rev" hidden>
+    <span class="n" aria-hidden="true">3</span>
+    <h2 id="h-rev">Revisar e enviar</h2>
+    <div id="summary" class="summary" hidden></div>
+    <div id="sendArea">
+      <div id="files"></div>
+      <div class="commit-row">
+        <label for="commitMsg">Mensagem do commit</label>
+        <input id="commitMsg" type="text" autocomplete="off">
+      </div>
+      <div class="row">
+        <button id="btnSend" class="btn" type="button">Enviar para o GitHub</button>
+        <span id="sendCount" class="muted"></span>
+      </div>
+      <p id="sendMsg" class="msg" role="status" style="margin-top:10px"></p>
+    </div>
+    <div id="sendDone" class="done" hidden></div>
+  </section>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+const encodePath = (p) => p.split('/').map(encodeURIComponent).join('/');
+
+const CFG_KEY = 'lovable-commander:cfg';
+const IGNORE = /(^|\/)(node_modules|dist|\.git)\/|(^|\/)(package-lock\.json|bun\.lockb?|yarn\.lock|pnpm-lock\.yaml)$/;
+const BINARY = /\.(png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|eot|pdf|zip|gz|mp4|mp3|mov)$/i;
+const MAX_FILE_CHARS = 40000;
+
+const state = {
+  token: sessionStorage.getItem('lc:gh_token') || '',
+  login: '',
+  repos: new Map(),      // "dono/repo" (minúsculo) -> branch padrão
+  tree: [],              // caminhos de arquivos da branch
+  treeSet: new Set(),
+  modes: new Map(),      // caminho -> modo git
+  cache: new Map(),      // caminho -> texto lido
+  proposal: null,
+  abort: null,
+};
+
+/* ---------- utilidades de interface ---------- */
+
+function setMsg(id, text, kind) {
+  const e = $(id);
+  e.textContent = text || '';
+  e.className = 'msg' + (kind ? ' ' + kind : '');
+}
+function log(text) {
+  const li = el('li'); li.textContent = text; $('log').appendChild(li);
+}
+function workerBase() { return $('workerUrl').value.trim().replace(/\/+$/, ''); }
+
+/* ---------- configuração salva no navegador ---------- */
+
+function loadCfg() {
+  let c = {};
+  try { c = JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); } catch {}
+  $('workerUrl').value = c.workerUrl || '';
+  $('repo').value = c.repo || '';
+  $('branch').value = c.branch || '';
+  $('model').value = c.model || 'claude-sonnet-5';
+  $('remember').checked = !!c.remember;
+  $('apiKey').value = c.remember ? (c.apiKey || '') : (sessionStorage.getItem('lc:apiKey') || '');
+}
+function saveCfg() {
+  const remember = $('remember').checked;
+  const c = {
+    workerUrl: $('workerUrl').value.trim(),
+    repo: $('repo').value.trim(),
+    branch: $('branch').value.trim(),
+    model: $('model').value.trim(),
+    remember,
+  };
+  const key = $('apiKey').value.trim();
+  if (remember) { c.apiKey = key; sessionStorage.removeItem('lc:apiKey'); }
+  else sessionStorage.setItem('lc:apiKey', key);
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch {}
+}
+
+/* ---------- GitHub: login e API ---------- */
+
+function renderConn() {
+  const on = !!state.token;
+  $('btnConnect').hidden = on;
+  $('btnDisconnect').hidden = !on;
+  $('connStatus').textContent = on
+    ? (state.login ? 'Conectado como @' + state.login : 'Conectado ao GitHub.')
+    : 'GitHub não conectado.';
+  $('connStatus').className = on ? '' : 'muted';
+  updateSendState();
+}
+
+function connect() {
+  const worker = workerBase();
+  if (!worker) return setMsg('connMsg', 'Informe o endereço do Worker de login.', 'err');
+  if (location.origin === 'null') return setMsg('connMsg', 'Abra o app por um endereço http (veja o aviso acima).', 'err');
+  saveCfg();
+  const w = window.open(worker + '/login?origin=' + encodeURIComponent(location.origin), 'gh-oauth', 'popup,width=620,height=760');
+  if (!w) return setMsg('connMsg', 'O navegador bloqueou a janela de login. Permita pop-ups para este endereço e tente de novo.', 'err');
+  setMsg('connMsg', 'Aguardando o login no GitHub…');
+  const timer = setInterval(() => {
+    if (w.closed) {
+      clearInterval(timer);
+      if (!state.token) setMsg('connMsg', 'A janela foi fechada antes de concluir o login.', 'warn');
+    }
+  }, 600);
+}
+
+window.addEventListener('message', async (ev) => {
+  let workerOrigin;
+  try { workerOrigin = new URL(workerBase()).origin; } catch { return; }
+  if (ev.origin !== workerOrigin) return;
+  const d = ev.data;
+  if (!d || d.type !== 'github-oauth') return;
+  if (d.error || !d.token) return setMsg('connMsg', d.error || 'Login sem token.', 'err');
+  state.token = d.token;
+  sessionStorage.setItem('lc:gh_token', d.token);
+  setMsg('connMsg', '');
+  await afterConnect();
+});
+
+function disconnect() {
+  state.token = ''; state.login = '';
+  sessionStorage.removeItem('lc:gh_token');
+  $('repoList').replaceChildren();
+  renderConn();
+}
+
+async function afterConnect() {
+  renderConn();
+  try {
+    const me = await (await gh('/user')).json();
+    state.login = me.login;
+    renderConn();
+    loadRepos();
+  } catch (e) {
+    setMsg('connMsg', e.message, 'err');
+  }
+}
+
+async function gh(path, opts = {}) {
+  const res = await fetch('https://api.github.com' + path, {
+    ...opts,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: 'Bearer ' + state.token,
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+  if (res.status === 401) {
+    disconnect();
+    throw new Error('O token do GitHub não é mais válido. Conecte de novo.');
+  }
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = (await res.json()).message || msg; } catch {}
+    throw new Error('GitHub ' + res.status + ': ' + msg);
+  }
+  return res;
+}
+
+async function loadRepos() {
+  try {
+    const list = await (await gh('/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member')).json();
+    state.repos.clear();
+    const dl = $('repoList'); dl.replaceChildren();
+    for (const r of list) {
+      if (r.permissions && !r.permissions.push) continue;
+      state.repos.set(r.full_name.toLowerCase(), r.default_branch);
+      const o = el('option'); o.value = r.full_name; dl.appendChild(o);
+    }
+  } catch { /* a lista é só conveniência */ }
+}
+
+function parseRepo() {
+  const m = $('repo').value.trim()
+    .replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/+$/, '')
+    .match(/^([\w.-]+)\/([\w.-]+)$/);
+  if (!m) throw new Error('Informe o repositório no formato dono/repo.');
+  return { owner: m[1], repo: m[2] };
+}
+
+async function resolveBranch(owner, repo) {
+  const typed = $('branch').value.trim();
+  if (typed) return typed;
+  const info = await (await gh(`/repos/${owner}/${repo}`)).json();
+  $('branch').value = info.default_branch;
+  saveCfg();
+  return info.default_branch;
+}
+
+async function getHead() {
+  const { owner, repo } = parseRepo();
+  const branch = await resolveBranch(owner, repo);
+  const ref = await (await gh(`/repos/${owner}/${repo}/git/ref/heads/${encodePath(branch)}`)).json();
+  const commit = await (await gh(`/repos/${owner}/${repo}/git/commits/${ref.object.sha}`)).json();
+  return { owner, repo, branch, commitSha: ref.object.sha, treeSha: commit.tree.sha };
+}
+
+async function loadTree(head) {
+  const data = await (await gh(`/repos/${head.owner}/${head.repo}/git/trees/${head.treeSha}?recursive=1`)).json();
+  const blobs = data.tree.filter((n) => n.type === 'blob');
+  state.tree = blobs.map((n) => n.path);
+  state.treeSet = new Set(state.tree);
+  state.modes = new Map(blobs.map((n) => [n.path, n.mode]));
+  state.cache.clear();
+  if (data.truncated) log('Aviso: o repositório é grande e a lista de arquivos veio incompleta.');
+}
+
+async function readRepoFile(head, path) {
+  if (!state.treeSet.has(path)) return { error: 'Arquivo não existe no repositório: ' + path };
+  if (BINARY.test(path)) return { error: 'Arquivo binário, não pode ser lido: ' + path };
+  if (state.cache.has(path)) return { text: state.cache.get(path) };
+  const res = await gh(
+    `/repos/${head.owner}/${head.repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(head.branch)}`,
+    { headers: { Accept: 'application/vnd.github.raw+json' } }
+  );
+  let text = await res.text();
+  if (text.length > MAX_FILE_CHARS) {
+    text = text.slice(0, MAX_FILE_CHARS) + '\n/* … arquivo truncado na leitura … */';
+  }
+  state.cache.set(path, text);
+  return { text };
+}
+
+/* ---------- IA: leitura do repositório + proposta de commit ---------- */
+
+const SYSTEM_PROMPT = `Você é um engenheiro front-end que edita um projeto do Lovable (React + Vite + TypeScript + Tailwind CSS + shadcn/ui, rotas com react-router-dom). Você recebe um pedido em português e devolve as alterações como um único commit.
+
+Regras:
+- Antes de editar um arquivo existente, leia-o com read_file. Leia também arquivos vizinhos (por exemplo src/App.tsx para rotas) quando precisar seguir as convenções do projeto.
+- Envie sempre o conteúdo COMPLETO de cada arquivo novo ou alterado. Nunca use trechos, "..." ou comentários como "resto do código".
+- Siga o estilo do código existente: imports com alias "@/", páginas em src/pages, componentes em src/components, componentes prontos de src/components/ui e classes Tailwind com os tokens do tema (bg-background, text-foreground, etc.) em vez de cores fixas.
+- Ao criar uma página, registre a rota em src/App.tsx e, se fizer sentido, o link de navegação.
+- Não edite package.json, lockfiles, .env nem src/components/ui, a menos que o pedido exija. Não use dependências que não estejam no package.json (leia-o antes se tiver dúvida).
+- Textos da interface em português do Brasil, a menos que o projeto use outro idioma.
+- Faça a menor mudança que resolve o pedido.
+- Termine chamando propose_changes uma única vez, com uma mensagem de commit curta no estilo Conventional Commits (feat:, fix:, refactor:…) e um resumo de uma ou duas frases. Se o pedido for ambíguo ou impossível, chame propose_changes com files vazio e explique no resumo.`;
+
+const TOOLS = [
+  {
+    name: 'read_file',
+    description: 'Lê o conteúdo atual de um arquivo do repositório.',
+    input_schema: {
+      type: 'object',
+      properties: { path: { type: 'string', description: 'Caminho relativo à raiz do repositório' } },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'propose_changes',
+    description: 'Entrega o resultado final: os arquivos a criar, alterar ou apagar e a mensagem de commit.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        commit_message: { type: 'string' },
+        summary: { type: 'string', description: 'Resumo curto, em português, do que foi feito' },
+        files: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              path: { type: 'string' },
+              action: { type: 'string', enum: ['write', 'delete'] },
+              content: { type: 'string', description: 'Conteúdo COMPLETO do arquivo (obrigatório quando action = write)' },
+            },
+            required: ['path', 'action'],
+          },
+        },
+      },
+      required: ['commit_message', 'files'],
+    },
+  },
+];
+
+async function callClaude(system, messages, signal) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    signal,
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': $('apiKey').value.trim(),
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: $('model').value.trim(),
+      max_tokens: 16000,
+      system,
+      tools: TOOLS,
+      messages,
+    }),
+  });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = (await res.json()).error?.message || msg; } catch {}
+    throw new Error('Anthropic ' + res.status + ': ' + msg);
+  }
+  return res.json();
+}
+
+async function runAgent(command, head, signal) {
+  const listing = state.tree.filter((p) => !IGNORE.test(p)).slice(0, 2500);
+  const system = SYSTEM_PROMPT +
+    `\n\nRepositório: ${head.owner}/${head.repo} (branch ${head.branch})\nArquivos (${listing.length}):\n` +
+    listing.join('\n');
+  const messages = [{ role: 'user', content: command }];
+
+  for (let i = 0; i < 14; i++) {
+    if (signal.aborted) throw new Error('Cancelado.');
+    const resp = await callClaude(system, messages, signal);
+    if (resp.stop_reason === 'max_tokens') {
+      throw new Error('A resposta da IA foi cortada por ser longa demais. Peça uma mudança menor ou divida em partes.');
+    }
+    messages.push({ role: 'assistant', content: resp.content });
+
+    const uses = resp.content.filter((b) => b.type === 'tool_use');
+    const final = uses.find((u) => u.name === 'propose_changes');
+    if (final) return final.input;
+
+    if (!uses.length) {
+      const t = resp.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+      throw new Error('A IA não devolveu alterações.' + (t ? ' Resposta: ' + t.slice(0, 400) : ''));
+    }
+
+    const results = [];
+    for (const u of uses) {
+      if (u.name === 'read_file') {
+        log('Lendo ' + u.input.path);
+        const r = await readRepoFile(head, String(u.input.path || ''));
+        results.push({
+          type: 'tool_result', tool_use_id: u.id,
+          content: r.error || r.text,
+          ...(r.error ? { is_error: true } : {}),
+        });
+      } else {
+        results.push({ type: 'tool_result', tool_use_id: u.id, content: 'Ferramenta desconhecida.', is_error: true });
+      }
+    }
+    messages.push({ role: 'user', content: results });
+  }
+  throw new Error('A IA passou do limite de leituras sem concluir. Tente um pedido mais específico.');
+}
+
+function normalize(p) {
+  const files = (p.files || []).map((f) => {
+    const path = String(f.path || '').trim().replace(/^\/+/, '');
+    const action = f.action === 'delete' ? 'delete' : 'write';
+    if (action === 'write' && typeof f.content !== 'string') {
+      throw new Error('A IA não enviou o conteúdo de ' + path + '. Gere de novo.');
+    }
+    return { path, action, content: action === 'write' ? f.content : '' };
+  });
+  return { message: String(p.commit_message || '').trim(), summary: String(p.summary || '').trim(), files };
+}
+
+/* ---------- gerar ---------- */
+
+function setBusy(on) {
+  $('btnGenerate').disabled = on;
+  $('btnCancel').hidden = !on;
+}
+
+async function generate() {
+  const command = $('command').value.trim();
+  setMsg('genMsg', ''); $('log').replaceChildren();
+  if (!state.token) return setMsg('genMsg', 'Conecte com o GitHub primeiro.', 'err');
+  if (!$('apiKey').value.trim()) return setMsg('genMsg', 'Informe a chave da API da Anthropic.', 'err');
+  if (!$('model').value.trim()) return setMsg('genMsg', 'Informe o modelo.', 'err');
+  if (!command) return setMsg('genMsg', 'Escreva o que você quer mudar.', 'err');
+  try { parseRepo(); } catch (e) { return setMsg('genMsg', e.message, 'err'); }
+
+  saveCfg();
+  state.abort = new AbortController();
+  setBusy(true);
+  $('review').hidden = true;
+  try {
+    log('Lendo a estrutura do repositório');
+    const head = await getHead();
+    await loadTree(head);
+    log(`Consultando a IA (${state.tree.length} arquivos no repositório)`);
+    const raw = await runAgent(command, head, state.abort.signal);
+    state.proposal = normalize(raw);
+    state.proposal.head = { owner: head.owner, repo: head.repo, branch: head.branch };
+    log('Alterações prontas para revisão');
+    renderReview();
+  } catch (e) {
+    if (e.name === 'AbortError') setMsg('genMsg', 'Cancelado.', 'warn');
+    else setMsg('genMsg', e.message, 'err');
+  } finally {
+    setBusy(false);
+    state.abort = null;
+  }
+}
+
+/* ---------- revisar ---------- */
+
+function renderReview() {
+  const p = state.proposal;
+  $('review').hidden = false;
+  $('sendDone').hidden = true;
+  $('sendArea').hidden = false;
+  setMsg('sendMsg', '');
+  $('commitMsg').value = p.message;
+  $('summary').textContent = p.summary;
+  $('summary').hidden = !p.summary;
+
+  const wrap = $('files'); wrap.replaceChildren();
+  if (!p.files.length) {
+    const n = el('p', 'muted'); n.textContent = 'A IA não propôs nenhuma alteração. Leia o resumo acima e ajuste o comando.';
+    wrap.appendChild(n);
+  }
+  p.files.forEach((f) => wrap.appendChild(fileCard(f)));
+  updateSendState();
+  $('review').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function fileCard(f) {
+  const card = el('div', 'file');
+  const head = el('div', 'file-head');
+  const chip = el('span', 'chip');
+  const path = el('input', 'path'); path.type = 'text'; path.value = f.path; path.spellcheck = false;
+  path.setAttribute('aria-label', 'Caminho do arquivo');
+  const rm = el('button', 'btn ghost small'); rm.type = 'button'; rm.textContent = 'Remover do commit';
+
+  const refresh = () => {
+    const [t, c] = f.action === 'delete' ? ['removido', 'del'] : state.treeSet.has(f.path) ? ['alterado', 'mod'] : ['novo', 'new'];
+    chip.textContent = t; chip.className = 'chip ' + c;
+  };
+  path.addEventListener('input', () => { f.path = path.value.trim().replace(/^\/+/, ''); refresh(); });
+  rm.addEventListener('click', () => {
+    state.proposal.files = state.proposal.files.filter((x) => x !== f);
+    card.remove(); updateSendState();
+  });
+  head.append(chip, path, rm);
+  card.appendChild(head);
+
+  if (f.action === 'write') {
+    const ta = el('textarea', 'code');
+    ta.value = f.content; ta.spellcheck = false;
+    ta.rows = Math.min(18, Math.max(6, f.content.split('\n').length));
+    ta.setAttribute('aria-label', 'Conteúdo do arquivo');
+    ta.addEventListener('input', () => { f.content = ta.value; });
+    card.appendChild(ta);
+  } else {
+    const n = el('p', 'muted pad'); n.textContent = 'Este arquivo será apagado do repositório.';
+    card.appendChild(n);
+  }
+  refresh();
+  return card;
+}
+
+function updateSendState() {
+  const n = state.proposal ? state.proposal.files.length : 0;
+  $('btnSend').disabled = !state.token || n === 0;
+  $('sendCount').textContent = n ? n + (n === 1 ? ' arquivo' : ' arquivos') : '';
+}
+
+/* ---------- enviar (um commit com todos os arquivos) ---------- */
+
+async function send() {
+  const p = state.proposal;
+  if (!p) return;
+  setMsg('sendMsg', '');
+  const message = $('commitMsg').value.trim();
+  const files = p.files;
+  if (!message) return setMsg('sendMsg', 'Escreva a mensagem do commit.', 'err');
+  if (!files.length) return setMsg('sendMsg', 'Não há arquivos para enviar.', 'err');
+  const bad = files.find((f) => !f.path || f.path.split('/').some((s) => s === '' || s === '.' || s === '..') || f.path.startsWith('.git/'));
+  if (bad) return setMsg('sendMsg', 'Caminho inválido: "' + bad.path + '".', 'err');
+  if (new Set(files.map((f) => f.path)).size !== files.length) return setMsg('sendMsg', 'Há dois arquivos com o mesmo caminho.', 'err');
+
+  const { owner, repo, branch } = p.head;
+  if (!confirm(`Enviar ${files.length} arquivo(s) para ${owner}/${repo} (branch ${branch})?`)) return;
+
+  $('btnSend').disabled = true;
+  setMsg('sendMsg', 'Enviando…');
+  try {
+    // Busca o estado mais recente da branch para não sobrescrever commits novos.
+    const ref = await (await gh(`/repos/${owner}/${repo}/git/ref/heads/${encodePath(branch)}`)).json();
+    const parent = await (await gh(`/repos/${owner}/${repo}/git/commits/${ref.object.sha}`)).json();
+
+    const entries = files.map((f) => f.action === 'delete'
+      ? { path: f.path, mode: state.modes.get(f.path) || '100644', type: 'blob', sha: null }
+      : { path: f.path, mode: state.modes.get(f.path) || '100644', type: 'blob', content: f.content });
+
+    const tree = await (await gh(`/repos/${owner}/${repo}/git/trees`, {
+      method: 'POST', body: JSON.stringify({ base_tree: parent.tree.sha, tree: entries }),
+    })).json();
+    const commit = await (await gh(`/repos/${owner}/${repo}/git/commits`, {
+      method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [ref.object.sha] }),
+    })).json();
+    await gh(`/repos/${owner}/${repo}/git/refs/heads/${encodePath(branch)}`, {
+      method: 'PATCH', body: JSON.stringify({ sha: commit.sha }),
+    });
+
+    const done = $('sendDone');
+    done.replaceChildren();
+    const t = el('p'); t.style.margin = '0 0 6px'; t.textContent = 'Commit enviado. O Lovable deve puxar a mudança em instantes.';
+    const a = el('a'); a.href = `https://github.com/${owner}/${repo}/commit/${commit.sha}`;
+    a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Ver commit ' + commit.sha.slice(0, 7) + ' no GitHub';
+    done.append(t, a);
+    done.hidden = false;
+    $('sendArea').hidden = true;
+    state.proposal = null;
+    updateSendState();
+  } catch (e) {
+    setMsg('sendMsg', e.message, 'err');
+    $('btnSend').disabled = false;
+  }
+}
+
+/* ---------- eventos e início ---------- */
+
+$('btnConnect').addEventListener('click', connect);
+$('btnDisconnect').addEventListener('click', disconnect);
+$('btnGenerate').addEventListener('click', generate);
+$('btnCancel').addEventListener('click', () => state.abort && state.abort.abort());
+$('btnSend').addEventListener('click', send);
+$('command').addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); generate(); }
+});
+['workerUrl', 'repo', 'branch', 'model', 'apiKey', 'remember'].forEach((id) => $(id).addEventListener('input', saveCfg));
+$('repo').addEventListener('change', () => {
+  const def = state.repos.get($('repo').value.trim().toLowerCase());
+  if (def) { $('branch').value = def; saveCfg(); }
+});
+
+loadCfg();
+if (location.protocol === 'file:') $('fileWarn').hidden = false;
+renderConn();
+if (state.token) afterConnect();
+})();
+</script>
+</body>
+</html>
